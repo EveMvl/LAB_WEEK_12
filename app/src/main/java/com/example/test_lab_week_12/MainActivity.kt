@@ -3,8 +3,11 @@ package com.example.test_lab_week_12
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,13 +25,24 @@ class MainActivity : AppCompatActivity() {
         val movieVM = ViewModelProvider(this, MovieViewModel.Factory(repo))
             .get(MovieViewModel::class.java)
 
-        movieVM.popularMovies.observe(this) { list ->
-            movieAdapter.addMovies(list)
-        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
 
-        movieVM.error.observe(this) { error ->
-            if (!error.isNullOrBlank()) {
-                Snackbar.make(recyclerView, error, Snackbar.LENGTH_LONG).show()
+                // ---- Collect movies ----
+                launch {
+                    movieVM.popularMovies.collect { list ->
+                        movieAdapter.addMovies(list)
+                    }
+                }
+
+                // ---- Collect errors ----
+                launch {
+                    movieVM.error.collect { msg ->
+                        if (msg.isNotEmpty()) {
+                            Snackbar.make(recyclerView, msg, Snackbar.LENGTH_LONG).show()
+                        }
+                    }
+                }
             }
         }
     }
